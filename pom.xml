@@ -10,8 +10,8 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>jacoco_sb_war</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-<!--	<version>0.0.1</version>-->
+<!--	<version>0.0.1-SNAPSHOT</version> -->
+	<version>0.0.1</version>
 	<packaging>war</packaging>
 	<name>jacoco_sb_war</name>
 	<description>Demo project for Spring Boot</description>

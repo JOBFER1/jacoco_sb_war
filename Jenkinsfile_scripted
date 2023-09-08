@@ -1,28 +1,29 @@
 node {
     try {
         stage('Checkout') {
-            bat "xcopy /E C:\\workspace\\Prueba_Sonar_Nexus /Y"
+            bat "xcopy /E C:\\workspace\\jacoco_sb_war /Y"
         }
-        stage ('Package Stage') {
-            bat './mvnw package'
+        stage ('Compilar') {
+            bat './mvnw clean package'
         }
-        stage('Test & Jacoco Static Analysis') {
+        stage('Test y Jacoco') {
             junit 'target/surefire-reports/**/*.xml'
             jacoco()
         }
-        stage('Sonar Scanner Coverage') {
-            //export JAVA_HOME='C:\\Program Files\\Java\\jdk-11.0.11'
-            jdk = tool name: 'JDK_11'
-            env.JAVA_HOME = "${jdk}"
-            echo "jdk installation path is: ${jdk}"
-            bat "./mvnw sonar:sonar -Dsonar.login=admin -Dsonar.password=admin -Dsonar.host.url=http://localhost:9000"
+        stage('SonarQube') {
+//            bat "./mvnw sonar:sonar -Dsonar.login=admin -Dsonar.password=admin -Dsonar.host.url=http://localhost:9000"
+            withSonarQubeEnv(installationName: 'Sonar 7.9.6', credentialsId: 'Token-Sonar') {
+                bat 'mvn sonar:sonar'
+            }        	
         }
-        stage ('Publish to Nexus') {
-            nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'nexus-reposit', packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: './target/Prueba_Sonar_Nexus-0.0.1-SNAPSHOT.war']],mavenCoordinate: [artifactId: 'Prueba_Sonar_Nexus', groupId: 'com.example', packaging: 'war', version: '0.0.1-SNAPSHOT']]]
+        stage ('Nexus') {
+            nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
+            	packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: './target/jacoco_sb_war-0.0.1.war']],
+            	mavenCoordinate: [artifactId: 'jacoco_sb_war', groupId: 'com.example', packaging: 'war', version: '0.0.1']]]
         }
-        stage ('Deploy on this Server') {
-            //deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
-            bat "powershell Copy-Item target/Prueba_Sonar_Nexus-0.0.1-SNAPSHOT.war -Destination C:/apache-tomcat-9.0.74/webapps"
+        stage ('Tomcat') {
+            deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
+//            bat "powershell Copy-Item target/jacoco_sb_war-0.0.1.war -Destination C:/apache-tomcat-9.0.74/webapps"
         }
     }
     catch (e) {
