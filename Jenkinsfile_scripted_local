@@ -1,0 +1,36 @@
+node {
+	try {
+		dir('C:/workspace/jacoco_sb_war') {   
+	        stage ('Compilar') {
+	            bat './mvnw clean package'
+	        }
+	        stage('Test y Jacoco') {
+	            junit 'target/surefire-reports/**/*.xml'
+	            jacoco()
+	        }
+	        stage('SonarQube') {
+	//            bat "./mvnw sonar:sonar -Dsonar.login=admin -Dsonar.password=admin -Dsonar.host.url=http://localhost:9000"
+	            withSonarQubeEnv(installationName: 'Sonar 7.9.6', credentialsId: 'Token-Sonar') {
+	                bat 'mvn sonar:sonar'
+	            }        	
+	        }
+	        stage ('Nexus') {
+	            nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
+	            	packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: './target/jacoco_sb_war-0.0.1.war']],
+	            	mavenCoordinate: [artifactId: 'jacoco_sb_war', groupId: 'com.example', packaging: 'war', version: '0.0.1']]]
+	        }
+	        stage ('Tomcat') {
+	            deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
+	//            bat "powershell Copy-Item target/jacoco_sb_war-0.0.1.war -Destination C:/apache-tomcat-9.0.74/webapps"
+	        }
+		}
+    }
+    catch (e) {
+        def to = "jobfer"
+        currentBuild.result = 'FAILURE'
+        def subject = "Jenkins - Build FAILURE"
+        //def content = '${JELLY_SCRIPT,template="html"}'
+        def content = 'Fallooooo!!!!'
+        emailext(body: content, mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: subject, to: to)
+    }
+}
