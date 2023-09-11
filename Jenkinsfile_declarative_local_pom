@@ -1,0 +1,76 @@
+pipeline{
+    agent any
+    tools{
+        maven 'MAVEN_3_8_6'
+        jdk 'JDK_11'
+    }
+    options {
+        skipDefaultCheckout(true)
+    }
+    environment {
+    	ARTIFACTID = readMavenPom(file: 'C:/workspace/jacoco_sb_war/pom.xml').getArtifactId()
+    	VERSION = readMavenPom(file: 'C:/workspace/jacoco_sb_war/pom.xml').getVersion()
+    	GROUPID = readMavenPom(file: 'C:/workspace/jacoco_sb_war/pom.xml').getGroupId()
+    	PACKAGING = readMavenPom(file: 'C:/workspace/jacoco_sb_war/pom.xml').getPackaging()
+    }       
+    stages{
+        stage ('Compilar') {
+            steps {
+            	dir('C:/workspace/jacoco_sb_war') {            	
+            		bat 'mvn clean package'
+            	}
+            }
+        }
+        
+        stage('Tests y Jacoco') {
+            steps {
+            	dir('C:/workspace/jacoco_sb_war') {   
+	                junit 'target/surefire-reports/**/*.xml'
+	                jacoco()
+            	}
+            }
+        }
+        
+        stage('SonarQube') {
+            steps{
+            	dir('C:/workspace/jacoco_sb_war') {   
+	                withSonarQubeEnv(installationName: 'Sonar 7.9.6', credentialsId: 'Token-Sonar') {
+	                	bat 'mvn sonar:sonar'
+	                }
+            	}
+            }
+        }
+
+        stage ('Nexus') {
+            steps {
+            	dir('C:/workspace/jacoco_sb_war') {
+	                nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
+					packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', 
+					filePath: "target/${ARTIFACTID}-${VERSION}.${PACKAGING}"]],
+					mavenCoordinate: [artifactId: "${ARTIFACTID}", groupId: "${GROUPID}", packaging: "${PACKAGING}", version: "${VERSION}"]]]
+            	}
+            }
+        }
+        
+        stage ('Tomcat') {    
+            steps {        
+            	dir('C:/workspace/jacoco_sb_war') { 
+//	                bat "powershell Copy-Item target/jacoco_sb_war-0.0.1.war -Destination C:/apache-tomcat-9.0.74/webapps"
+	                deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
+            	}
+            }
+        }
+        
+    }
+    post {
+    	always {
+    		cleanWs()
+    		dir("${env.WORKSPACE}@tmp") {
+    			deleteDir()
+    		}
+    		dir("${env.WORKSPACE}@script") {
+    			deleteDir()
+    		}
+    	}
+    }    
+}

@@ -1,0 +1,95 @@
+pipeline{
+    agent any
+//    tools{
+//        maven 'MAVEN_3_8_6'
+//        jdk 'JDK_11'
+//    }
+    options {
+        skipDefaultCheckout(true)
+    }
+    stages{
+        stage ('Obtener pom') {
+            steps {
+            	script{
+            		def pomFile = readFile('C:/workspace/jacoco_sb_war/pom.xml')
+            		def pom = new XmlParser().parseText(pomFile)
+            		
+//       			 	def gavMap = [:]
+//       			 	gavMap['groupId'] =  pom['groupId'].text().trim()
+//       			 	gavMap['artifactId'] =  pom['artifactId'].text().trim()
+//       			 	gavMap['version'] =  pom['version'].text().trim()
+//       			 	gavMap['packaging'] =  pom['packaging'].text().trim()
+       			 
+//       			 	env.ARTIFACTID = gavMap['artifactId']
+//       			 	env.VERSION = gavMap['version']
+//       			 	env.GROUPID = gavMap['groupId']
+//       			 	env.PACKAGING = gavMap['packaging']
+       			 			
+       	       		env.ARTIFACTID = pom['artifactId'].text().trim()
+       	            env.VERSION = pom['version'].text().trim()
+       	            env.GROUPID = pom['groupId'].text().trim()
+       	            env.PACKAGING = pom['packaging'].text().trim()
+            	}            	
+            }
+        }
+
+        stage ('Compilar') {
+            steps {
+            	dir('C:/workspace/jacoco_sb_war') {            	
+            		bat 'mvn clean package'
+            	}
+            }
+        }
+        
+        stage('Tests y Jacoco') {
+            steps {
+            	dir('C:/workspace/jacoco_sb_war') {   
+	                junit 'target/surefire-reports/**/*.xml'
+	                jacoco()
+            	}
+            }
+        }
+        
+        stage('SonarQube') {
+            steps{
+            	dir('C:/workspace/jacoco_sb_war') {   
+	                withSonarQubeEnv(installationName: 'Sonar 7.9.6', credentialsId: 'Token-Sonar') {
+	                	bat 'mvn sonar:sonar'
+	                }
+            	}
+            }
+        }
+
+        stage ('Nexus') {
+            steps {
+            	dir('C:/workspace/jacoco_sb_war') {   
+	                nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
+					packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', 
+					filePath: "target/${env.ARTIFACTID}-${env.VERSION}.${env.PACKAGING}"]],
+					mavenCoordinate: [artifactId: "${env.ARTIFACTID}", groupId: "${env.GROUPID}", packaging: "${env.PACKAGING}", version: "${env.VERSION}"]]]
+            	}
+            }
+        }
+        
+        stage ('Tomcat') {    
+            steps {        
+            	dir('C:/workspace/jacoco_sb_war') { 
+//	                bat "powershell Copy-Item target/jacoco_sb_war-0.0.1.war -Destination C:/apache-tomcat-9.0.74/webapps"
+	                deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
+            	}
+            }
+        }
+        
+    }
+    post {
+    	always {
+    		cleanWs()
+    		dir("${env.WORKSPACE}@tmp") {
+    			deleteDir()
+    		}
+    		dir("${env.WORKSPACE}@script") {
+    			deleteDir()
+    		}
+    	}
+    }    
+}
