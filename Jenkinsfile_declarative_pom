@@ -1,5 +1,8 @@
 pipeline{
     agent any
+    triggers { 
+    	githubPush() 
+   	}    
     tools{
         maven 'MAVEN_3_8_6'
         jdk 'JDK_11'
@@ -13,7 +16,6 @@ pipeline{
     stages{
     	stage('Inicio') {
     		steps {
-    			bat "echo Hola"
     	    	echo "${ARTIFACTID}"
     	    	echo "${VERSION}"
     	    	echo "${GROUPID}"
@@ -43,18 +45,39 @@ pipeline{
             }
         }
 
-        stage ('Nexus') {
+        stage ('Nexus SNAPSHOT') {
+        	when{
+        		expression { 
+        			VERSION ==~ /^.*-SNAPSHOT$/ 
+        		}
+        	}
 			steps {
+				echo "ES UN SNAPSHOT: ${VERSION}"
+                nexusArtifactUploader artifacts: [[artifactId: "${ARTIFACTID}", classifier: '', file: "./target/${ARTIFACTID}-${VERSION}.${PACKAGING}", type: "${PACKAGING}"]], 
+                	credentialsId: 'nexus_credenciales', groupId: "${GROUPID}", nexusUrl: 'localhost:8081/', nexusVersion: 'nexus3', protocol: 'http', 
+                	repository: 'maven-snapshots', version: "${VERSION}"
+
+			}
+        }
+        
+        stage ('Nexus RELEASE') {
+        	when{
+                expression { 
+                	!(VERSION ==~ /^.*-SNAPSHOT$/) 
+                }
+        	}
+			steps {
+				echo "NO ES SNAPSHOT: ${VERSION}"
 		    	nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
 					packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', 
 					filePath: "./target/${ARTIFACTID}-${VERSION}.${PACKAGING}"]],
 					mavenCoordinate: [artifactId: "${ARTIFACTID}", groupId: "${GROUPID}", packaging: "${PACKAGING}", version: "${VERSION}"]]]
 			}
-        }        
+        }          
         stage ('Tomcat') {    
             steps {        
-                bat "powershell Copy-Item target/jacoco_sb_war-0.0.1.war -Destination C:/apache-tomcat-9.0.74/webapps"
-//                deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
+//            	bat "powershell Copy-Item target/${ARTIFACTID}-${VERSION}.${PACKAGING} -Destination C:/apache-tomcat-9.0.74/webapps"
+                deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
             }
         }
         

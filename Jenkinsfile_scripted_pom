@@ -23,11 +23,24 @@ node {
             }        	
         }
 
-        stage ('Nexus') {
-            nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
-            	packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: "./target/${pom.artifactId}-${pom.version}.${pom.packaging}"]],
-            	mavenCoordinate: [artifactId: "${pom.artifactId}", groupId: "${pom.groupId}", packaging: "${pom.packaging}", version: "${pom.version}"]]]
+        stage ('Nexus SNAPSHOT') {
+        	if ( pom.version ==~ /^.*-SNAPSHOT$/) {
+        		echo "ES UN SNAPSHOT: ${pom.version}"
+                nexusArtifactUploader artifacts: [[artifactId: "${pom.artifactId}", classifier: '', file: "./target/${pom.artifactId}-${pom.version}.${pom.packaging}", type: "${pom.packaging}"]], 
+            		credentialsId: 'nexus_credenciales', groupId: "${pom.groupId}", nexusUrl: 'localhost:8081/', nexusVersion: 'nexus3', protocol: 'http', 
+            		repository: 'maven-snapshots', version: "${pom.version}"
+                    		
+        	}
         }
+        
+        stage ('Nexus RELEASE') {
+        	if ( !(pom.version ==~ /^.*-SNAPSHOT$/)) {
+        		echo "NO ES UN SNAPSHOT: ${pom.version}"
+        		nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
+            		packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: "./target/${pom.artifactId}-${pom.version}.${pom.packaging}"]],
+                    mavenCoordinate: [artifactId: "${pom.artifactId}", groupId: "${pom.groupId}", packaging: "${pom.packaging}", version: "${pom.version}"]]]
+        	}
+        }        
 
         stage ('Tomcat') {
             deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
