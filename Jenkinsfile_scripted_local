@@ -26,11 +26,9 @@ node {
 		}
     }
     catch (e) {
-        def to = "jobfer"
-        currentBuild.result = 'FAILURE'
-        def subject = "Jenkins - Build FAILURE"
-        //def content = '${JELLY_SCRIPT,template="html"}'
-        def content = 'Fallooooo!!!!'
+        def to = "jobfer@outlook.es"
+        def subject = "Jenkins - Build FAILURE - ${JOB_NAME} - ${BUILD_NUMBER}"
+        def content = '${JELLY_SCRIPT,template="html"}'
         emailext(body: content, mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: subject, to: to)
     }
 }

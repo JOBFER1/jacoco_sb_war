@@ -1,15 +1,16 @@
 node {
     try {
     	properties([
-	        pipelineTriggers([
-    		    githubPush()
-    		])
-	    ])       	
+    	    pipelineTriggers([
+	            githubPush()
+	        ])
+    	])    	
         stage('Checkout') {
     		checkout scm
-            bat "xcopy /E C:\\workspace\\jacoco_sb_war /Y"
+//            bat "xcopy /E C:\\workspace\\jacoco_sb_war /Y"
             
         	pom = readMavenPom file: 'pom.xml'
+//        	pom = readMavenPom file: 'pom.xml_ERROR'
         	bat "echo ${pom.artifactId}"
         	bat "echo ${pom.version}"
         	bat "echo ${pom.groupId}"
@@ -58,5 +59,11 @@ node {
         def subject = "Jenkins - Build FAILURE - ${JOB_NAME} - ${BUILD_NUMBER}"
         def content = '${JELLY_SCRIPT,template="html"}'
         emailext(body: content, mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', subject: subject, to: to)
+          	
+        mail(
+        	subject: "Error in Pipeline ${JOB_NAME} - ${BUILD_NUMBER}",
+            body: "Ha ocurrido un error en Jenkins pipeline ${BUILD_URL}",
+            to: "jobfer@outlook.es"
+        )
     }
 }
