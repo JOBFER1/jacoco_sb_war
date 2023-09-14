@@ -1,9 +1,9 @@
 pipeline{
     agent any
-    tools{
-        maven 'MAVEN_3_8_6'
-        jdk 'JDK_11'
-    }
+//    tools{
+//        maven 'MAVEN_3_8_6'
+//        jdk 'JDK_11'
+//    }
 //    options {
 //        skipDefaultCheckout(true)
 //    }
@@ -13,14 +13,12 @@ pipeline{
     stages{
     	stage('Inicio') {
     		steps {
-    			bat "echo Hola"
-//    			echo "WORKSPACE: ${env.WORKSPACE}"
-//    			bat 'SET'
-    			
     			echo "The build number is ${env.BUILD_NUMBER}"
     			echo "You can also use \${BUILD_NUMBER} -> ${BUILD_NUMBER}"
     			bat 'echo "I can access $BUILD_NUMBER in shell command as well."'
     			bat 'echo I can access $BUILD_NUMBER in shell command as well.'
+    			
+    			bat 'exit 1'
     		}
     	}
 
@@ -82,17 +80,36 @@ pipeline{
 //        }
     }
     post {
-    	always {
+        failure {
+            echo 'I failed :('
+            emailext(body: '${JELLY_SCRIPT,template="html"}', mimeType: 'text/html', replyTo: '$DEFAULT_REPLYTO', 
+            		subject: "Jenkins - Build FAILURE - ${JOB_NAME} - ${BUILD_NUMBER}", to: "jobfer@outlook.es")            
+              	
+            mail(
+            	subject: "Error in Pipeline ${JOB_NAME} - ${BUILD_NUMBER}",
+                body: "Ha ocurrido un error en Jenkins pipeline ${BUILD_URL}",
+                to: "jobfer@outlook.es"
+            )            
+        }
+        always {
+            echo 'This will always run'
     		cleanWs()
     		dir("${env.WORKSPACE}@tmp") {
     			deleteDir()
     		}
     		dir("${env.WORKSPACE}@script") {
     			deleteDir()
-    		}
-//    		dir("${env.WORKSPACE}@script@tmp") {
-//    			deleteDir()
-//    		}
-    	}
+    		}            
+        }
+        success {
+            echo 'This will run only if successful'
+        }
+        unstable {
+            echo 'This will run only if the run was marked as unstable'
+        }
+        changed {
+            echo 'This will run only if the state of the Pipeline has changed'
+            echo 'For example, if the Pipeline was previously failing but is now successful'
+        }        
     }    
 }
