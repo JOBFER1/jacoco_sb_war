@@ -39,47 +39,50 @@ pipeline{
         
         stage('SonarQube') {
             steps{
-                withSonarQubeEnv(installationName: 'Sonar 7.9.6', credentialsId: 'Token-Sonar') {
+                //withSonarQubeEnv(installationName: 'Sonar 7.9.6', credentialsId: 'Token-Sonar-7') {
+                withSonarQubeEnv(installationName: 'Sonar 10.2.1', credentialsId: 'Token-Sonar-10') {
                 	bat 'mvn sonar:sonar'
                 }
             }
         }
 
-        stage ('Nexus SNAPSHOT') {
-        	when{
-        		expression { 
-        			VERSION ==~ /^.*-SNAPSHOT$/ 
-        		}
-        	}
-			steps {
-				echo "ES UN SNAPSHOT: ${VERSION}"
-                nexusArtifactUploader artifacts: [[artifactId: "${ARTIFACTID}", classifier: '', file: "./target/${ARTIFACTID}-${VERSION}.${PACKAGING}", type: "${PACKAGING}"]], 
-                	credentialsId: 'nexus_credenciales', groupId: "${GROUPID}", nexusUrl: 'localhost:8081/', nexusVersion: 'nexus3', protocol: 'http', 
-                	repository: 'maven-snapshots', version: "${VERSION}"
-
-			}
-        }
+//        stage ('Nexus SNAPSHOT') {
+//        	when{
+//        		expression { 
+//        			VERSION ==~ /^.*-SNAPSHOT$/ 
+//        		}
+//        	}
+//			steps {
+//				echo "ES UN SNAPSHOT: ${VERSION}"
+//                nexusArtifactUploader artifacts: [[artifactId: "${ARTIFACTID}", classifier: '', file: "./target/${ARTIFACTID}-${VERSION}.${PACKAGING}", type: "${PACKAGING}"]], 
+//                	credentialsId: 'nexus_credenciales', groupId: "${GROUPID}", nexusUrl: 'localhost:8081/', nexusVersion: 'nexus3', protocol: 'http', 
+//                	repository: 'maven-snapshots', version: "${VERSION}"
+//
+//			}
+//        }
         
-        stage ('Nexus RELEASE') {
-        	when{
-                expression { 
-                	!(VERSION ==~ /^.*-SNAPSHOT$/) 
-                }
-        	}
-			steps {
-				echo "NO ES SNAPSHOT: ${VERSION}"
-		    	nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
-					packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', 
-					filePath: "./target/${ARTIFACTID}-${VERSION}.${PACKAGING}"]],
-					mavenCoordinate: [artifactId: "${ARTIFACTID}", groupId: "${GROUPID}", packaging: "${PACKAGING}", version: "${VERSION}"]]]
-			}
-        }          
-        stage ('Tomcat') {    
-            steps {        
-//            	bat "powershell Copy-Item target/${ARTIFACTID}-${VERSION}.${PACKAGING} -Destination C:/apache-tomcat-9.0.74/webapps"
-                deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
-            }
-        }
+//        stage ('Nexus RELEASE') {
+//        	when{
+//                expression { 
+//                	!(VERSION ==~ /^.*-SNAPSHOT$/) 
+//                }
+//        	}
+//			steps {
+//				echo "NO ES SNAPSHOT: ${VERSION}"
+//		    	nexusPublisher nexusInstanceId: 'NEXUS_1', nexusRepositoryId: 'maven-releases', 
+//					packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', 
+//					filePath: "./target/${ARTIFACTID}-${VERSION}.${PACKAGING}"]],
+//					mavenCoordinate: [artifactId: "${ARTIFACTID}", groupId: "${GROUPID}", packaging: "${PACKAGING}", version: "${VERSION}"]]]
+//			}
+//        }          
+        
+//        stage ('Tomcat') {    
+//            steps {        
+////            	bat "powershell Copy-Item target/${ARTIFACTID}-${VERSION}.${PACKAGING} -Destination C:/apache-tomcat-9.0.74/webapps"
+//                deploy adapters: [tomcat9(credentialsId: 'credenciales_tomcat', path: '', url: 'http://localhost:8080')], contextPath: null, war: '**/*.war'
+//            }
+//        }
+		
         
     }
     post {
